@@ -1,30 +1,29 @@
 /*global window, YUI, YT, document */
 YUI.add("youtube-iframe-tests", function (Y) {
 
+    "use strict";
+
     var Assert = Y.Assert,
         suite = new Y.Test.Suite("youtube-iframe"),
-        _player,
         createPlayer;
 
     createPlayer = function (o) {
         o = o || {};
         var attrs = {
-            "container": "#container",
             "autoPlay": true,
-            "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
+            "url": "http://www.youtube.com/watch?v=faVCwOesYl8",
+            "size": ["200px", "200px"]
         };
         return new Y.YoutubeIframe(Y.merge(attrs, o));
     };
 
-    _player = new Y.YoutubeIframe({
-        "container": "#container2",
-        "autoPlay": true,
-        "url": "https://www.youtube.com/watch?v=pg1lpgdTRuo",
-        "size": ["400px", "300px"]
-    });
-
     suite.add(new Y.Test.Case({
         name: "Y.YoutubeIframe",
+        _should: {
+            ignore: {
+                "size of container should be equal to size attribute": true
+            }
+        },
         //======================
         // Setup and tear down
         //======================
@@ -41,33 +40,29 @@ YUI.add("youtube-iframe-tests", function (Y) {
         //======================
         "instance should be rendered without url attribute": function () {
             this.player = new Y.YoutubeIframe({
-                "container": "#container"
+                "size": ["200px", "200px"]
             });
-
             Assert.isTrue(this.player instanceof Y.YoutubeIframe);
         },
         "instance should be rendered without autoPlay attribute": function () {
             this.player = new Y.YoutubeIframe({
-                "container": "#container",
+                "size": ["200px", "200px"],
                 "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
             });
             Assert.isTrue(this.player instanceof Y.YoutubeIframe);
         },
         "instance should be an YT.Player instance": function () {
-            this.player = new Y.YoutubeIframe({
-                "container": "#container",
-                "size": ["100px", "100px"],
+            var that = this;
+            that.player = new Y.YoutubeIframe({
+                "size": ["200px", "200px"],
                 "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
             });
-            Assert.isTrue(this.player.get("instance") instanceof YT.Player);
-        },
-        "container should be converted to iframe": function () {
-            this.player = new Y.YoutubeIframe({
-                "container": "#container",
-                "size": ["100px", "100px"],
-                "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
-            });
-            Assert.isTrue(Y.one("#container").get("nodeName").toLowerCase() === "iframe");
+            that.player.on("ready", function () {
+                that.resume(function () {
+                    Assert.isTrue(that.player.get("instance") instanceof YT.Player);
+                });
+            }, that);
+            that.wait();
         },
         "duration should be readOnly": function () {
             var that = this;
@@ -84,89 +79,118 @@ YUI.add("youtube-iframe-tests", function (Y) {
                     Assert.areEqual(beforeValue, afterValue);
                 });
             });
-            that.wait(5000);
+            that.wait();
         },
         "duration should not equal to zero after state changes to 'playing'": function () {
-            Assert.isTrue(_player.get("duration") > 0);
+            var that = this;
+            that.player = createPlayer();
+            that.player.on("playing", function () {
+                Y.later(1000, null, function () {
+                    that.resume(function () {
+                        Assert.isTrue(that.player.get("duration") > 0);
+                    });
+                });
+            }, that);
+            that.wait();
         },
         "ready event should be triggered after initialization": function () {
-            this.player = createPlayer();
-            this.player.on("ready", function () {
-                this.resume();
-                Assert.pass();
-            }, this);
-            this.wait(5000);
+            var that = this;
+            that.player = createPlayer();
+            that.player.on("ready", function () {
+                that.resume(function () {
+                    Assert.pass();
+                });
+            }, that);
+            that.wait();
         },
         "mode should always be 0": function () {
-            this.player = createPlayer();
-            Assert.areEqual(0, this.player.get("mode"));
+            var that = this;
+            that.player = createPlayer();
+            Assert.areEqual(0, that.player.get("mode"));
+            that.player.on("ready", function () {
+                that.resume(function () {
+                    Assert.areEqual(0, that.player.get("mode"));
+                });
+            }, that);
+            that.wait();
         },
         "position could be configured at initialization": function () {
             var that = this,
                 expected = 3;
             that.player = createPlayer({
-                "container": "#container",
                 "autoPlay": true,
+                "size": ["200px", "200px"],
                 "position": expected,
                 "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
             });
             that.player.on("playing", function () {
-                this.resume(function () {
+                that.resume(function () {
                     Assert.isTrue(that.player.get("position") >= expected);
                 });
             }, that);
-            that.wait(5000);
+            that.wait();
         },
         "position should be updated by setting position attribute": function () {
             var that = this,
                 expected = 3;
             that.player = createPlayer({
-                "container": "#container",
                 "autoPlay": true,
+                "size": ["200px", "200px"],
                 "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
             });
             that.player.on("ready", function () {
                 that.player._set("position", expected);
             }, that);
             that.player.on("playing", function () {
-                this.resume(function () {
-                    Assert.isTrue(this.player.get("position") >= expected);
+                that.resume(function () {
+                    Assert.areEqual(expected, that.player.get("position"));
                 });
             }, that);
             that.wait(5000);
         },
         "position should not equal to zero after playing for 3 secs": function () {
-            this.player = createPlayer({"autoPlay": true});
-            this.player.on("playing", function () {
-                this.resume(function () {
-                    Assert.areNotEqual(0, this.player.get("position"));
+            var that = this;
+            that.player = createPlayer();
+            that.player.once("playing", function () {
+                that.resume(function () {
+                    that.wait(function () {
+                        Assert.areNotEqual(0, that.player.get("position"));
+                    }, 3000);
                 });
-                this.wait(5000);
-            }, this);
+            });
+            that.wait();
         },
         "size of container should be equal to size attribute": function () {
-            var width,
+            var that = this,
+                id,
+                width,
                 height,
                 node;
 
-            this.player = new Y.YoutubeIframe({
-                "container": "#container",
-                "size": ["100px", "100px"],
+            that.player = new Y.YoutubeIframe({
+                "container": "#test-size",
+                "size": ["200px", "200px"],
                 "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
             });
-            node = Y.one("#container");
-            width = node.get("offsetWidth") + "px";
-            height = node.get("offsetHeight") + "px";
-            Assert.areEqual("100px,100px", width + "," + height);
+            that.player.on("ready", function () {
+                that.resume(function () {
+                    id = that.player.get("container").get("id");
+                    node = document.getElementById(id);
+                    width = node.offsetWidth + "px";
+                    height = node.offsetHeight + "px";
+                    Assert.areEqual("200px,200px", width + "," + height);
+                });
+            });
+            that.wait();
         },
         "state should be 'initializing' at the beginning": function () {
-            this.player = createPlayer();
-            Assert.areEqual("initializing", this.player.get("state"));
+            var that = this;
+            that.player = createPlayer();
+            Assert.areEqual("initializing", that.player.get("state"));
         },
         "state should be 'ready' immediately after player is ready": function () {
             var that = this;
             that.player = new Y.YoutubeIframe({
-                "container": "#container",
                 "autoPlay": true,
                 "url": "http://www.youtube.com/watch?v=faVCwOesYl8"
             });
@@ -175,31 +199,71 @@ YUI.add("youtube-iframe-tests", function (Y) {
                     Assert.areEqual("ready", that.player.get("state"));
                 });
             });
-            that.wait(5000);
+            that.wait();
         },
         "state should be 'paused' after pause method executes": function () {
             var that = this;
-            _player.pause();
-            Assert.areEqual("paused", _player.get("state"));
+            that.player = createPlayer();
+            that.player.on("playing", function (e) {
+                that.resume(function () {
+                    that.player.pause();
+                    Assert.areEqual("paused", that.player.get("state"));
+                });
+            });
+            that.wait();
         },
         "state should be 'playing' after play method executes after paused": function () {
             var that = this;
-            _player.resume();
-            Assert.areEqual("playing", _player.get("state"));
+            that.player = createPlayer();
+            that.player.on("playing", function (e) {
+                that.resume(function () {
+                    that.player.pause();
+                    that.wait(function () {
+                        that.player.resume();
+                        Assert.areEqual("playing", that.player.get("state"));
+                    }, 1000);
+                });
+            });
+            that.wait();
         },
         "state should be 'stopped' after stop method executes": function () {
             var that = this;
-            _player.stop();
-            Assert.areEqual("stopped", _player.get("state"));
+            that.player = createPlayer();
+            that.player.on("playing", function (e) {
+                that.resume(function () {
+                    that.player.stop();
+                    Assert.areEqual("stopped", that.player.get("state"));
+                });
+            });
+            that.wait();
         },
         "state should be 'play' after play executes after stop": function () {
-            _player.play();
-            Assert.areEqual("play", _player.get("state"));
+            var that = this;
+            that.player = createPlayer();
+            that.player.on("playing", function (e) {
+                that.resume(function () {
+                    that.player.stop();
+                    that.wait(function () {
+                        that.player.play();
+                        Assert.areEqual("play", that.player.get("state"));
+                    }, 1000);
+                });
+            });
+            that.wait();
         },
         "url should be updated after play method executes": function () {
-            var expected = "http://www.youtube.com/watch?v=u1zgFlCw8Aw";
-            _player.play(expected);
-            Assert.areEqual(expected, _player.get("url"));
+            var that = this;
+            that.player = createPlayer();
+            that.player.on("playing", function (e) {
+                Y.later(1000, null, function () {
+                    that.resume(function () {
+                        var expected = "http://www.youtube.com/watch?v=u1zgFlCw8Aw";
+                        that.player.play(expected);
+                        Assert.areEqual(expected, that.player.get("url"));
+                    });
+                });
+            });
+            that.wait();
         }
     }));
 
@@ -208,6 +272,7 @@ YUI.add("youtube-iframe-tests", function (Y) {
 }, "@VERSION", {
     "requires": [
         "youtube-iframe",
+        "ytplayer-mock",
         "test"
     ]
 });

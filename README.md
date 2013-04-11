@@ -5,7 +5,7 @@ It's an YouTube IFrame Player API wrapper for YUI.
 
 ## Build Status
 
-![Build Status](https://api.travis-ci.org/miiicasa/youtube-iframe.png?branch=master)
+![Build Status](https://api.travis-ci.org/josephj/youtube-iframe.png?branch=master)
 
 ## How to use
 
